@@ -913,7 +913,7 @@ dependencies = [
 [[package]]
 name = "rgb-consensus"
 version = "0.11.1-rc.8"
-source = "git+https://github.com/saltduck/rgb-consensus.git?branch=outstack#d07f5918fac4fdd0a4f570a21dee6a55bb751f3f"
+source = "git+https://github.com/saltduck/rgb-consensus.git?branch=outstack#7596637672dfa9c59dad52a82c0ca480d7125d19"
 dependencies = [
  "amplify",
  "baid64",
@@ -1068,7 +1068,7 @@ dependencies = [
  "log",
  "once_cell",
  "rustls-pki-types",
- "rustls-webpki 0.103.9",
+ "rustls-webpki 0.103.10",
  "subtle",
  "zeroize",
 ]
@@ -1094,9 +1094,9 @@ dependencies = [
 
 [[package]]
 name = "rustls-webpki"
-version = "0.103.9"
+version = "0.103.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7df23109aa6c1567d1c575b9952556388da57401e4ace1d15f79eedad0d8f53"
+checksum = "df33b2b81ac578cabaf06b89b0631153a3f416b0a886e8a7a1707fb51abbd1ef"
 dependencies = [
  "aws-lc-rs",
  "ring",
