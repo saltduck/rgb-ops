@@ -879,8 +879,7 @@ dependencies = [
 [[package]]
 name = "rgb-aluvm"
 version = "0.11.1-rc.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6b9e41006564b48551e52e001181898982b11732348100216097033b3e536a2"
+source = "git+https://github.com/saltduck/rgb-aluvm.git?branch=outstack#b0992336f664e84cfb62414db2ef035fd951ce32"
 dependencies = [
  "amplify",
  "baid64",

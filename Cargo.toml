@@ -29,7 +29,7 @@ electrum-client = "0.24.0"
 esplora-client = { version = "0.12.1", default-features = false }
 rgb-strict-encoding = "1.0.1"
 rgb-strict-types = "1.0.1"
-rgb-consensus = { version = "0.11.1-rc.8", features = [
+rgb-consensus = { git = "https://github.com/saltduck/rgb-consensus.git", branch = "outstack", version = "0.11.1-rc.8", features = [
     "rand",
     "stl",
 ] }
@@ -64,7 +64,7 @@ esplora-client = { workspace = true, optional = true }
 rgb-strict-encoding = { workspace = true }
 rgb-strict-types = { workspace = true }
 rgb-consensus = { workspace = true }
-rgb-invoicing = { version = "0.11.1-rc.8", path = "invoice" }
+rgb-invoicing = { path = "invoice" }
 rgb-aluvm = "0.11.1-rc.2"
 base85 = "=2.0.0"
 chrono = "0.4.38"
@@ -118,3 +118,4 @@ features = ["all"]
 
 [patch.crates-io]
 rgb-consensus = { git = "https://github.com/saltduck/rgb-consensus.git", branch = "outstack" }
+rgb-aluvm = { git = "https://github.com/saltduck/rgb-aluvm.git", branch = "outstack" }
