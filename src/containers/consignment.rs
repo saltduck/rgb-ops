@@ -50,7 +50,7 @@ use super::{
 };
 use crate::contract::ContractData;
 use crate::info::ContractInfo;
-use crate::persistence::{MemContract, MemContractState};
+use crate::persistence::{ConsignmentValidatorState, MemContract, MemContractState, MemState};
 use crate::{SecretSeal, LIB_NAME_RGB_OPS};
 
 pub type Transfer = Consignment<true>;
@@ -378,6 +378,45 @@ impl<const TRANSFER: bool> Consignment<TRANSFER> {
             &self,
             &resolver,
             (&self.schema, self.contract_id()),
+            validation_config,
+        )?;
+
+        Ok(ValidConsignment {
+            validation_status: status,
+            consignment: self,
+        })
+    }
+
+    pub fn validate_extra_states(
+        self,
+        resolver: &impl ResolveWitness,
+        validation_config: &ValidationConfig,
+        extra_states: Option<Vec<&[MemState]>>,
+    ) -> Result<ValidConsignment<TRANSFER>, ValidationError> {
+        if self.transfer != TRANSFER {
+            return Err(ValidationError::InvalidConsignment(Failure::Custom(s!(
+                "invalid consignment type"
+            ))));
+        }
+        if !self.transfer && (!self.bundles.is_empty() || !self.terminals.is_empty()) {
+            return Err(ValidationError::InvalidConsignment(Failure::Custom(s!(
+                "contract consignment must not contain bundles nor terminals"
+            ))));
+        }
+
+        // check bundle ids listed in terminals are present in the consignment
+        for bundle_id in self.terminals.keys() {
+            if !self.bundle_ids().any(|id| id == *bundle_id) {
+                return Err(ValidationError::InvalidConsignment(Failure::Custom(format!(
+                    "terminal bundle id {bundle_id} is not present in the consignment"
+                ))));
+            }
+        }
+
+        let status = Validator::<ConsignmentValidatorState, _, _>::validate(
+            &self,
+            &resolver,
+            (&self.schema, self.contract_id(), extra_states),
             validation_config,
         )?;
 

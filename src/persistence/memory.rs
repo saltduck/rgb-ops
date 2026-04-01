@@ -630,6 +630,46 @@ impl<M: Borrow<MemContractState>> MemContract<M> {
     }
 }
 
+impl MemContract<MemContractState> {
+    /// Inserts every witness ord from `ms` into the filter so assignments that reference those
+    /// witnesses pass [`OutputAssignment::check_witness`] when read through
+    /// [`ContractStateAccess`] (the same view exposed as [`rgb::vm::VmContext::contract_state`]).
+    pub(crate) fn merge_mem_state_witnesses(&mut self, ms: &MemState) {
+        for (id, ord) in ms.witnesses.iter() {
+            self.filter.insert(*id, *ord);
+        }
+    }
+
+    /// Merges persisted contract data from a read view (`StateReadProvider::contract_state`).
+    pub(crate) fn merge_contract_read(&mut self, extra: MemContract<&MemContractState>) {
+        self.filter
+            .extend(extra.filter.iter().map(|(id, ord)| (*id, *ord)));
+        self.invalid_bundles
+            .extend(extra.invalid_bundles.iter().copied());
+
+        let extra_unfiltered = extra.unfiltered;
+        for (ty, global_state) in extra_unfiltered.global.iter() {
+            let target_state = self
+                .unfiltered
+                .global
+                .get_mut(ty)
+                .expect("global map must be initialized from the schema");
+            for (out, data) in global_state.known.iter() {
+                target_state.known.insert(*out, data.clone()).ok();
+            }
+        }
+        for assignment in extra_unfiltered.rights.iter() {
+            self.unfiltered.rights.push(assignment.clone()).ok();
+        }
+        for assignment in extra_unfiltered.fungibles.iter() {
+            self.unfiltered.fungibles.push(assignment.clone()).ok();
+        }
+        for assignment in extra_unfiltered.data.iter() {
+            self.unfiltered.data.push(assignment.clone()).ok();
+        }
+    }
+}
+
 impl<M: Borrow<MemContractState>> Debug for MemContract<M> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str("MemContractFiltered { .. }")
@@ -799,6 +839,74 @@ impl ContractStateEvolve for MemContract<MemContractState> {
         }?;
         Ok(())
     }
+}
+
+/// [`rgb::validation::Validator`] state bootstrapped from extra [`MemState`] snapshots.
+///
+/// The validator keeps this type in an [`std::rc::Rc`]`<`[`std::cell::RefCell`]`<Self>>`; the same
+/// handle is cloned into [`rgb::vm::VmContext::contract_state`]. AluVM instructions that load from
+/// contract state (e.g. custom `ldof` / `ldor` / `ldod`, or upstream `ldc` / owned-state reads)
+/// therefore see whatever was merged here in [`ConsignmentValidatorState::init`].
+#[derive(Debug)]
+pub struct ConsignmentValidatorState(MemContract<MemContractState>);
+
+impl ContractStateAccess for ConsignmentValidatorState {
+    fn global(
+        &self,
+        ty: GlobalStateType,
+    ) -> Result<impl GlobalsIter<Item = impl Borrow<GlobalStateEntry>>, UnknownGlobalStateType>
+    {
+        self.0.global(ty)
+    }
+
+    fn rights(&self, outpoint: Outpoint, ty: AssignmentType) -> u32 {
+        self.0.rights(outpoint, ty)
+    }
+
+    fn fungible(
+        &self,
+        outpoint: Outpoint,
+        ty: AssignmentType,
+    ) -> impl DoubleEndedIterator<Item = FungibleState> {
+        self.0.fungible(outpoint, ty)
+    }
+
+    fn data(
+        &self,
+        outpoint: Outpoint,
+        ty: AssignmentType,
+    ) -> impl DoubleEndedIterator<Item = impl Borrow<RevealedData>> {
+        self.0.data(outpoint, ty)
+    }
+}
+
+impl ContractStateEvolve for ConsignmentValidatorState {
+    type Context<'ctx> = (
+        &'ctx Schema,
+        ContractId,
+        Option<Vec<&'ctx [MemState]>>,
+    );
+    type Error = MemError;
+
+    fn init(context: Self::Context<'_>) -> Self {
+        let (schema, contract_id, extra_states) = context;
+        let mut state = MemContract::init((schema, contract_id));
+
+        if let Some(chunks) = extra_states {
+            for chunk in chunks {
+                for ms in chunk {
+                    state.merge_mem_state_witnesses(ms);
+                    if let Ok(extra_contract) = ms.contract_state(contract_id) {
+                        state.merge_contract_read(extra_contract);
+                    }
+                }
+            }
+        }
+
+        Self(state)
+    }
+
+    fn evolve_state(&mut self, op: OrdOpRef) -> Result<(), Self::Error> { self.0.evolve_state(op) }
 }
 
 impl<M: Borrow<MemContractState>> ContractStateRead for MemContract<M> {

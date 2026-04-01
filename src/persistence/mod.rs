@@ -44,7 +44,8 @@ pub use index::{
     IndexWriteError, IndexWriteProvider,
 };
 pub use memory::{
-    MemContract, MemContractState, MemError, MemGlobalState, MemIndex, MemStash, MemState,
+    ConsignmentValidatorState, MemContract, MemContractState, MemError, MemGlobalState, MemIndex,
+    MemStash, MemState,
 };
 pub use stash::{
     ProviderError as StashProviderError, Stash, StashDataError, StashError, StashInconsistency,
